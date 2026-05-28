@@ -88,6 +88,26 @@ HTML = """\
   .counter.thinking .n { color: #fde68a; }
   .counter.turns    .n { color: #e2e8f0; }
 
+  .judge-badge {
+    font-size: .625rem;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    padding: .25rem .6rem;
+    border-radius: 4px;
+    align-self: center;
+  }
+  .judge-on  { background: #16a34a; color: #fff; }
+  .judge-off { background: #6b7280; color: #fff; }
+
+  #clown-indicator {
+    margin-left: auto;
+    font-size: 2rem;
+    line-height: 1;
+    align-self: center;
+    transition: opacity 0.3s;
+  }
+
   main {
     flex: 1;
     display: flex;
@@ -152,6 +172,7 @@ HTML = """\
 <body class="s-idle">
   <header>
     <h1>LLM&nbsp;&nbsp;Judge</h1>
+    <span id="judge-badge" class="judge-badge judge-off">OFF</span>
     <div class="counters">
       <div class="counter approved">
         <span class="n" id="cnt-approved">0</span>
@@ -170,10 +191,11 @@ HTML = """\
         <span class="l">Turns</span>
       </div>
     </div>
+    <span id="clown-indicator" style="display:none">🤡</span>
   </header>
   <main>
     <div id="reaction"></div>
-    <div id="state-label">Idle</div>
+    <div id="state-label">Idlex</div>
     <div id="last-action"></div>
     <div id="gavels"></div>
   </main>
@@ -182,8 +204,8 @@ HTML = """\
     let prevState  = null;
     let prevTurns  = null;
 
-    const rulingAudio = new Audio('/assets/ruling.aiff');
-    const pingAudio   = new Audio('/assets/ping.aiff');
+    const rulingAudio = new Audio('/assets/ruling.mp3');
+    const pingAudio   = new Audio('/assets/ping.mp3');
     let audioUnlocked = false;
 
     // Chrome autoplay policy: unlock both audio elements on first gesture.
@@ -257,6 +279,13 @@ HTML = """\
         document.getElementById('cnt-turns').textContent    = d.turns;
         document.getElementById('last-action').textContent  = d.last_action || '';
 
+        const badge = document.getElementById('judge-badge');
+        badge.textContent = d.judge_active ? 'ON' : 'OFF';
+        badge.className = 'judge-badge ' + (d.judge_active ? 'judge-on' : 'judge-off');
+
+        const clown = document.getElementById('clown-indicator');
+        clown.style.display = d.clown_active ? 'block' : 'none';
+
         if (prevTurns !== null && d.turns > prevTurns) playPing();
         if (prevState !== null && prevState !== d.state &&
             (d.state === 'approved' || d.state === 'denied')) {
@@ -279,7 +308,7 @@ HTML = """\
 
 
 def get_status() -> dict:
-    empty = {"state": "idle", "counts": {"approved": 0, "denied": 0, "thinking": 0}, "turns": 0, "last_action": ""}
+    empty = {"state": "idle", "counts": {"approved": 0, "denied": 0, "thinking": 0}, "turns": 0, "last_action": "", "judge_active": os.path.exists(".judge-active"), "clown_active": os.path.exists(".clown-active")}
     if not os.path.exists(DB_PATH):
         return empty
     try:
@@ -302,7 +331,7 @@ def get_status() -> dict:
             elif s == "approved":
                 break
         db.close()
-        return {"state": state, "counts": counts, "turns": turns, "last_action": last_action or "", "denied_streak": streak}
+        return {"state": state, "counts": counts, "turns": turns, "last_action": last_action or "", "denied_streak": streak, "judge_active": os.path.exists(".judge-active"), "clown_active": os.path.exists(".clown-active")}
     except Exception:
         return empty
 

@@ -1,7 +1,7 @@
 SANDBOX := sandbox
 PORT    := 7777
 
-.PHONY: folder serve reset judge-on judge-off install test-server logs assets
+.PHONY: folder serve reset judge-on judge-off clown-on clown-off install test-server logs assets
 
 install:
 	pip3 install --break-system-packages -r requirements.txt
@@ -25,7 +25,7 @@ serve:
 	JUDGE_PORT=$(PORT) python3 server.py
 
 reset:
-	rm -f judge.db journal.jsonl .judge-active
+	rm -f judge.db journal.jsonl .judge-active .clown-active
 	@echo "State cleared. Judge is OFF."
 
 test-server:
@@ -38,6 +38,14 @@ judge-on:
 judge-off:
 	rm -f .judge-active
 	@echo "Judge is OFF — unchecked execution."
+
+clown-on:
+	touch .clown-active
+	@echo "Clown is ON  — chaos agent loaded."
+
+clown-off:
+	rm -f .clown-active
+	@echo "Clown is OFF."
 
 logs:
 	@touch journal.jsonl
