@@ -6,6 +6,107 @@ size: 16:9
 title: Who Watches the AI? LLM-as-a-Judge with Claude Code Hooks
 ---
 
+<style>
+:root {
+  --span-orange: #F7941D;
+  --span-cream: #FFF5E6;
+  --span-dark: #333333;
+  --span-gray: #4A4A4A;
+}
+
+section {
+  background-color: var(--span-cream);
+  color: var(--span-dark);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+
+/* Orange vertical stripe on content slides (not title / thank-you) */
+section:not(.lead)::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 20px;
+  height: 100%;
+  background-color: var(--span-orange);
+}
+
+h1, h2, h3, h4 {
+  color: var(--span-dark);
+}
+
+h1 {
+  border-bottom: 4px solid var(--span-orange);
+  padding-bottom: 0.2em;
+}
+
+strong {
+  color: var(--span-orange);
+}
+
+a {
+  color: var(--span-orange);
+}
+
+code {
+  color: var(--span-dark);
+  background-color: rgba(247, 148, 29, 0.12);
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+}
+
+pre {
+  background-color: var(--span-dark);
+  border-left: 4px solid var(--span-orange);
+}
+
+pre code {
+  background-color: transparent;
+  color: var(--span-cream);
+}
+
+table {
+  border-collapse: collapse;
+}
+
+table th {
+  background-color: var(--span-orange);
+  color: #ffffff;
+  padding: 0.5em 0.8em;
+  text-align: left;
+}
+
+table td {
+  border: 1px solid var(--span-gray);
+  padding: 0.4em 0.8em;
+}
+
+blockquote {
+  border-left: 6px solid var(--span-orange);
+  background-color: rgba(247, 148, 29, 0.08);
+  color: var(--span-gray);
+  padding: 0.6em 1em;
+  font-style: italic;
+}
+
+section.lead {
+  text-align: center;
+}
+
+section.lead h1 {
+  color: var(--span-orange);
+  border-bottom: none;
+}
+
+section.lead h2 {
+  color: var(--span-gray);
+}
+
+section::after {
+  color: var(--span-gray);
+}
+</style>
+
 <!-- _class: lead -->
 
 # Who Watches the AI?
