@@ -31,6 +31,14 @@ section:not(.lead)::before {
   background-color: var(--span-orange);
 }
 
+/* SPAN logo footer on content slides */
+section:not(.lead) {
+  background-image: url('span-logo.png');
+  background-repeat: no-repeat;
+  background-position: 40px calc(100% - 30px);
+  background-size: 110px auto;
+}
+
 h1, h2, h3, h4 {
   color: var(--span-dark);
 }
@@ -108,6 +116,8 @@ section::after {
 </style>
 
 <!-- _class: lead -->
+
+<img src="span-logo.png" alt="SPAN Digital" style="width: 260px; margin-bottom: 1.2em;" />
 
 # Who Watches the AI?
 
@@ -294,6 +304,8 @@ Blocked actions never execute. Every ruling is auditable.
 ---
 
 <!-- _class: lead -->
+
+<img src="span-logo.png" alt="SPAN Digital" style="width: 200px; margin-bottom: 1em;" />
 
 # Questions?
 
