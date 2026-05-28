@@ -1,0 +1,7 @@
+judge.db
+journal.jsonl
+.judge-active
+__pycache__/
+*.pyc
+.env
+sandbox/
