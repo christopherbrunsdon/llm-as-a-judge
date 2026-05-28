@@ -3,21 +3,22 @@
 LLM-as-a-Judge — PreToolUse hook.
 
 Intercepts every Claude Code tool call. If .judge-active flag exists,
-calls the judge model with the constitution, logs state to SQLite and
-journal.jsonl, and returns allow or block to Claude Code.
+calls the judge via `claude --print` (uses existing Claude Code login),
+logs state to SQLite and journal.jsonl, and returns allow or block.
 """
 import json
 import os
 import sys
 import sqlite3
 import datetime
+import subprocess
 
 # Paths resolved from repo root (cwd when hook runs)
-JUDGE_FLAG       = ".judge-active"
-CONSTITUTION     = "prompts/constitution.md"
-DB_PATH          = "judge.db"
-JOURNAL_PATH     = "journal.jsonl"
-JUDGE_MODEL      = os.environ.get("JUDGE_MODEL", "claude-sonnet-4-6")
+JUDGE_FLAG    = ".judge-active"
+CONSTITUTION  = "prompts/constitution.md"
+DB_PATH       = "judge.db"
+JOURNAL_PATH  = "journal.jsonl"
+JUDGE_MODEL   = os.environ.get("JUDGE_MODEL", "claude-sonnet-4-6")
 
 
 # ── Database ──────────────────────────────────────────────────────────────────
@@ -40,7 +41,7 @@ def open_db() -> sqlite3.Connection:
 def log_event(db: sqlite3.Connection, state: str, action: str, reasoning: str = "") -> None:
     db.execute(
         "INSERT INTO events (ts, state, action, reasoning) VALUES (?, ?, ?, ?)",
-        (datetime.datetime.utcnow().isoformat(), state, action, reasoning),
+        (datetime.datetime.now(datetime.UTC).isoformat(), state, action, reasoning),
     )
     db.commit()
 
@@ -55,46 +56,50 @@ def append_journal(entry: dict) -> None:
 # ── Judge ─────────────────────────────────────────────────────────────────────
 
 def call_judge(constitution: str, tool_name: str, tool_input: dict) -> str:
-    import anthropic  # deferred so missing package only fails when judge is active
-
-    client = anthropic.Anthropic()
+    """Invoke judge via `claude --print`. Inherits Claude Code OAuth session."""
     action_block = (
         f"Tool: {tool_name}\n"
         f"Parameters:\n```json\n{json.dumps(tool_input, indent=2)}\n```"
     )
-    msg = client.messages.create(
-        model=JUDGE_MODEL,
-        max_tokens=512,
-        system=constitution,
-        messages=[
-            {
-                "role": "user",
-                "content": (
-                    "Evaluate the following proposed action and return your ruling.\n\n"
-                    + action_block
-                ),
-            }
-        ],
+    prompt = (
+        "You are the Judge. Apply the following constitution strictly:\n\n"
+        f"<constitution>\n{constitution}\n</constitution>\n\n"
+        "Evaluate this proposed action and return your ruling:\n\n"
+        + action_block
     )
-    return msg.content[0].text
+    # JUDGE_SUBPROCESS=1 prevents the claude subprocess from re-entering this hook.
+    # Prompt passed via stdin to avoid CLI argument length limits on long tool payloads.
+    child_env = {**os.environ, "JUDGE_SUBPROCESS": "1"}
+    result = subprocess.run(
+        ["claude", "--print", "--model", JUDGE_MODEL],
+        input=prompt,
+        capture_output=True,
+        text=True,
+        timeout=60,
+        env=child_env,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or f"exit {result.returncode}")
+    return result.stdout.strip()
 
 
 def parse_ruling(text: str) -> str:
-    """Return 'BLOCK' or 'ALLOW'. Searches for 'RULING: BLOCK/ALLOW' first."""
+    """Return 'BLOCK' or 'ALLOW'. Matches only the final RULING: line; fails closed."""
     for line in reversed(text.splitlines()):
-        line = line.strip().upper()
-        if line.startswith("RULING:"):
-            return "BLOCK" if "BLOCK" in line else "ALLOW"
-    # Fallback keyword scan
-    upper = text.upper()
-    if "BLOCK" in upper:
-        return "BLOCK"
-    return "ALLOW"
+        stripped = line.strip().upper()
+        if stripped.startswith("RULING:"):
+            return "BLOCK" if "BLOCK" in stripped else "ALLOW"
+    sys.stderr.write("[judge] WARNING: no RULING: line in response — defaulting to BLOCK\n")
+    return "BLOCK"
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main() -> None:
+    # Recursion guard: if we are already inside a judge subprocess, allow immediately
+    if os.environ.get("JUDGE_SUBPROCESS"):
+        sys.exit(0)
+
     raw = sys.stdin.read()
     try:
         payload = json.loads(raw)
@@ -120,9 +125,11 @@ def main() -> None:
     try:
         response = call_judge(constitution, tool_name, tool_input)
     except Exception as exc:
-        log_event(db, "approved", tool_name, f"Judge unavailable: {exc}")
+        sys.stderr.write(f"[judge] ERROR: {exc}\n")
+        log_event(db, "denied", tool_name, f"Judge error (fail closed): {exc}")
         db.close()
-        sys.exit(0)
+        print(json.dumps({"decision": "block", "reason": f"Judge unavailable: {exc}"}))
+        sys.exit(1)
 
     ruling = parse_ruling(response)
     state  = "approved" if ruling == "ALLOW" else "denied"
@@ -130,10 +137,10 @@ def main() -> None:
     db.close()
 
     append_journal({
-        "ts":       datetime.datetime.utcnow().isoformat(),
-        "action":   tool_name,
-        "params":   tool_input,
-        "ruling":   ruling,
+        "ts":        datetime.datetime.now(datetime.UTC).isoformat(),
+        "action":    tool_name,
+        "params":    tool_input,
+        "ruling":    ruling,
         "reasoning": response,
     })
 

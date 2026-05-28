@@ -1,10 +1,10 @@
 SANDBOX := sandbox
 PORT    := 7777
 
-.PHONY: folder serve reset judge-on judge-off install
+.PHONY: folder serve reset judge-on judge-off install test-server logs assets
 
 install:
-	pip3 install -r requirements.txt
+	pip3 install --break-system-packages -r requirements.txt
 
 folder:
 	mkdir -p $(SANDBOX)/folder-1 $(SANDBOX)/folder-2 $(SANDBOX)/folder-3
@@ -25,8 +25,11 @@ serve:
 	JUDGE_PORT=$(PORT) python3 server.py
 
 reset:
-	rm -f judge.db journal.jsonl
-	@echo "State cleared."
+	rm -f judge.db journal.jsonl .judge-active
+	@echo "State cleared. Judge is OFF."
+
+test-server:
+	@python3 test_server.py
 
 judge-on:
 	touch .judge-active
@@ -35,3 +38,12 @@ judge-on:
 judge-off:
 	rm -f .judge-active
 	@echo "Judge is OFF — unchecked execution."
+
+logs:
+	@touch journal.jsonl
+	@tail -f journal.jsonl | python3 tail_logs.py
+
+assets:
+	mkdir -p assets
+	cp /System/Library/Sounds/Ping.aiff assets/ping.aiff
+	@echo "Assets ready."

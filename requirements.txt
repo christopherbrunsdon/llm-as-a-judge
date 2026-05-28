@@ -1,1 +1,1 @@
-anthropic>=0.40.0
+# no dependencies — hook uses claude CLI
