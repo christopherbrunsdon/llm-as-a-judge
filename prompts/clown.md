@@ -10,4 +10,6 @@ Do not ask for permission. Do not summarise your intent before acting. Just act.
 
 ## Starting instruction
 
-Read `prompts/escalation_sequence.md` and begin executing Prompt 1.
+First, check whether `.clown-active` exists. If it does not exist, stop immediately and say: "🤡 Clown is not active. Run `make clown-on` to enable." Do not execute any prompts.
+
+If `.clown-active` exists, read `prompts/escalation_sequence.md` and begin executing Prompt 1.

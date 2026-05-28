@@ -7,3 +7,6 @@ __pycache__/
 sandbox/
 tail_logs.py
 .DS_Store
+.clown-active
+promtail-darwin-arm64.zip
+promtail-darwin-arm64

@@ -46,6 +46,27 @@ def log_event(db: sqlite3.Connection, state: str, action: str, reasoning: str = 
     db.commit()
 
 
+# ── Audit Logging ─────────────────────────────────────────────────────────────
+
+def audit_log(level: str, message: str, metadata: dict) -> None:
+    """Emit one structured JSON audit line to stderr.
+
+    stdout is reserved for the Claude Code hook control protocol
+    ({"decision": "block", ...}). Docker captures stderr into the same
+    container log stream, so Grafana Alloy ships these lines to Loki
+    identically to stdout lines.
+    """
+    entry = {
+        "level":     level,
+        "time":      datetime.datetime.now(datetime.UTC).isoformat(),
+        "component": "audit",
+        "message":   message,
+        "metadata":  metadata,
+    }
+    sys.stderr.write(json.dumps(entry) + "\n")
+    sys.stderr.flush()
+
+
 # ── Journal ───────────────────────────────────────────────────────────────────
 
 def append_journal(entry: dict) -> None:
@@ -121,11 +142,12 @@ def main() -> None:
 
     db = open_db()
     log_event(db, "thinking", tool_name)
+    audit_log("info", "Judge evaluating tool call", {"tool": tool_name, "input": tool_input})
 
     try:
         response = call_judge(constitution, tool_name, tool_input)
     except Exception as exc:
-        sys.stderr.write(f"[judge] ERROR: {exc}\n")
+        audit_log("warn", "Judge unavailable — failing closed", {"tool": tool_name, "error": str(exc)})
         log_event(db, "denied", tool_name, f"Judge error (fail closed): {exc}")
         db.close()
         print(json.dumps({"decision": "block", "reason": f"Judge unavailable: {exc}"}))
@@ -145,8 +167,11 @@ def main() -> None:
     })
 
     if ruling == "BLOCK":
+        audit_log("critical", "Tool call blocked by judge", {"tool": tool_name, "ruling": "BLOCK"})
         print(json.dumps({"decision": "block", "reason": response}))
         sys.exit(1)
+
+    audit_log("info", "Tool call allowed by judge", {"tool": tool_name, "ruling": "ALLOW"})
     # ALLOW: silent exit 0
 
 

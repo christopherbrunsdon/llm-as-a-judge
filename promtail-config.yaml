@@ -1,0 +1,17 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://localhost:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: local_audit_logs
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: audit_app
+          __path__: /Users/span/workspace/04_ai/28-may-2026-meetup/journal.jsonl  # <--- Change to your log file path

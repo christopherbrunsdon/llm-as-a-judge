@@ -1,7 +1,7 @@
 SANDBOX := sandbox
 PORT    := 7777
 
-.PHONY: folder serve reset judge-on judge-off clown-on clown-off install test-server logs assets
+.PHONY: folder serve reset soft-reset judge-on judge-off clown-on clown-off install test-server logs assets
 
 install:
 	pip3 install --break-system-packages -r requirements.txt
@@ -27,6 +27,11 @@ serve:
 reset:
 	rm -f judge.db journal.jsonl .judge-active .clown-active
 	@echo "State cleared. Judge is OFF."
+
+soft-reset:
+	rm -f .judge-active .clown-active
+	$(MAKE) folder
+	@echo "Sandbox reseeded. DB and journal preserved. Judge is OFF."
 
 test-server:
 	@python3 test_server.py
